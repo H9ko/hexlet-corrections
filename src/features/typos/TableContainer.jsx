@@ -1,7 +1,7 @@
 /* eslint-disable react/jsx-props-no-spreading */
 import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useTable, usePagination } from 'react-table';
+import { useTable, usePagination, useSortBy } from 'react-table';
 import { range } from 'ramda';
 import { Table, Pagination, Form } from 'react-bootstrap';
 import { asyncActionsTypos, selectorTypos } from './typosSlice';
@@ -50,23 +50,23 @@ const TableContainer = ({ columns, data }) => {
     nextPage,
     previousPage,
     setPageSize,
-    state: { pageIndex, pageSize },
+    state: { pageIndex, pageSize, sortBy },
   } = useTable(
     {
       columns,
       data,
-      initialState: { pageIndex: 1, pageSize: 2 },
+      initialState: { pageIndex: 0, pageSize: 2 },
       manualPagination: true,
+      manualSortBy: true,
       pageCount: controlledPageCount,
     },
+    useSortBy,
     usePagination
   );
   const dispatch = useDispatch();
   React.useEffect(() => {
-    dispatch(asyncActionsTypos.getTypos({ pageIndex, pageSize }));
-  }, [dispatch, pageIndex, pageSize]);
-  console.log('TableContainer -> pageIndex', pageIndex);
-  console.log('TableContainer -> pageCount', pageCount);
+    dispatch(asyncActionsTypos.getTypos({ pageIndex, pageSize, sortBy: sortBy[0] }));
+  }, [dispatch, pageIndex, pageSize, sortBy]);
 
   const handleGoToPage = (selectPage) => () => {
     gotoPage(selectPage);
@@ -75,17 +75,22 @@ const TableContainer = ({ columns, data }) => {
 
   return (
     <>
-      <Table
-        bordered
-        hover
-        onPageChange={() => console.log('1122YAY)')}
-        {...getTableProps()}
-      >
+      <Table bordered hover {...getTableProps()}>
         <thead>
           {headerGroups.map((headerGroup) => (
             <tr {...headerGroup.getHeaderGroupProps()}>
               {headerGroup.headers.map((column) => (
-                <th {...column.getHeaderProps()}>{column.render('Header')}</th>
+                <th {...column.getHeaderProps(column.getSortByToggleProps())}>
+                  {column.render('Header')}
+                  {/* Add a sort direction indicator */}
+                  <span>
+                    {column.isSorted
+                      ? column.isSortedDesc
+                        ? ' 🔽'
+                        : ' 🔼'
+                      : ''}
+                  </span>
+                </th>
               ))}
             </tr>
           ))}

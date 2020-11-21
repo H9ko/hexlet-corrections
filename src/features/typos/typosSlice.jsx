@@ -11,13 +11,16 @@ const contactsAdapter = createEntityAdapter();
 const apiUrl = 'http://localhost:8080/api/typos';
 const getTypos = createAsyncThunk(
   'typos/get',
-  async (setting, { getState, rejectWithValue }) => {
-    const { pageIndex, pageSize } = setting;
-    const { pageSort } = getState().typos;
-    const requestUrl = `${apiUrl}${
-      pageSort ? `?page=${pageIndex}&size=${pageSize}&sort=${pageSort}` : ''
+  async (setting, { rejectWithValue }) => {
+    const { pageIndex, pageSize, sortBy } = setting;
+    console.log('sortBy1111111111', sortBy);
+    const { id, desc } = sortBy || {};
+
+
+    const requestUrl = `${apiUrl}${`?page=${pageIndex}&size=${pageSize}`}${
+      id ? `&sort=${id},${desc ? 'asc' : 'desc'}` : ''
     }`;
-    console.log('requestUrl', requestUrl);
+
 
     try {
       const response = await Axios.get(requestUrl);
@@ -29,9 +32,6 @@ const getTypos = createAsyncThunk(
 );
 const initialState = contactsAdapter.getInitialState({
   totalPages: 0,
-  pageSize: 5,
-  pageSort: 'asc',
-  currentPage: 1,
 });
 const typosSlice = createSlice({
   name: 'typos',
