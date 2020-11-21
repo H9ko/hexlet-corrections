@@ -1,7 +1,6 @@
 /* eslint-disable no-param-reassign */
 import {
   createSlice,
-  createSelector,
   createAsyncThunk,
   createEntityAdapter,
 } from '@reduxjs/toolkit';
@@ -9,20 +8,19 @@ import Axios from 'axios';
 
 const contactsAdapter = createEntityAdapter();
 
-const apiUrl = 'api/typos';
+const apiUrl = 'http://localhost:8080/api/typos';
 const getTypos = createAsyncThunk(
   'typos/get',
   async (setting, { getState, rejectWithValue }) => {
-    console.log('setting', setting);
-
-    const { pageSort, pageSize, currentPage } = setting;
+    const { pageIndex, pageSize } = setting;
+    const { pageSort } = getState().typos;
     const requestUrl = `${apiUrl}${
-      pageSort ? `?page=${currentPage}&size=${pageSize}&sort=${pageSort}` : ''
+      pageSort ? `?page=${pageIndex}&size=${pageSize}&sort=${pageSort}` : ''
     }`;
+    console.log('requestUrl', requestUrl);
 
     try {
       const response = await Axios.get(requestUrl);
-      console.log('response', response);
       return response.data;
     } catch (err) {
       return rejectWithValue(err.response.data);
@@ -30,28 +28,31 @@ const getTypos = createAsyncThunk(
   }
 );
 const initialState = contactsAdapter.getInitialState({
+  totalPages: 0,
   pageSize: 5,
   pageSort: 'asc',
-  currentPage: 0,
+  currentPage: 1,
 });
 const typosSlice = createSlice({
   name: 'typos',
   initialState,
   reducers: {
-    setPageSize(state, { payload }) {
-      return { ...state, pageSize: payload };
-    },
-    setPageSort(state, { payload }) {
-      return { ...state, pageSort: payload };
-    },
-    setCurrentPage(state, { payload }) {
-      return { ...state, currentPage: payload };
-    },
+    // setPageSize(state, { payload }) {
+    //   return { ...state, pageSize: payload };
+    // },
+    // setPageSort(state, { payload }) {
+    //   return { ...state, pageSort: payload };
+    // },
+    // setCurrentPage(state, { payload }) {
+    //   return { ...state, currentPage: payload };
+    // },
   },
   extraReducers: {
     [getTypos.fulfilled](state, { payload }) {
       console.log('payload', payload);
-      contactsAdapter.setAll(state, payload);
+      const { content, totalPages } = payload;
+      state.totalPages = totalPages;
+      contactsAdapter.setAll(state, content);
     },
   },
 });
@@ -66,9 +67,7 @@ export default typosSlice.reducer;
 const { selectAll, selectById } = contactsAdapter.getSelectors(
   ({ typos }) => typos
 );
-const selectPageSize = (state) => state.typos.pageSize;
-const selectPageSort = (state) => state.typos.pageSort;
-const selectCurrrentPage = (state) => state.typos.currentPage;
+const selectTotalPages = (state) => state.typos.totalPages;
 
 // const filteredContacts = createSelector(
 //   selectAll,
@@ -81,7 +80,5 @@ const selectCurrrentPage = (state) => state.typos.currentPage;
 
 export const selectorTypos = {
   selectAll,
-  selectPageSize,
-  selectPageSort,
-  selectCurrrentPage,
+  selectTotalPages,
 };

@@ -6,7 +6,7 @@ import Typos from './features/typos/Typos';
 function App() {
   return (
     <div className="App">
-      <Typos />
+      <Typos />   
     </div>
   );
 }

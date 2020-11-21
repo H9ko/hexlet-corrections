@@ -1,12 +1,40 @@
+/* eslint-disable react/jsx-props-no-spreading */
 import React from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useTable, usePagination } from 'react-table';
-import { Table, Row, Col, Button, Input, CustomInput } from 'reactstrap';
-import { actionsTypos } from './typosSlice';
+import { range } from 'ramda';
+import { Table, Pagination, Form } from 'react-bootstrap';
+import { asyncActionsTypos, selectorTypos } from './typosSlice';
 
-const TableContainer = ({ columns, data, controlledPageCount }) => {
+const getRange = (begin, end) => range(begin, end + 1);
+const getPages = (currentPage, totalPage) => {
+  const firstPage = 1;
+  const lastPage = totalPage;
+  const neighbours = 2;
+  const maxAvaliblePages = neighbours * 2 + 1;
+  if (totalPage < maxAvaliblePages) {
+    return range(firstPage, totalPage + 1);
+  }
+
+  const isLeftVisible = firstPage + neighbours < currentPage;
+  const isRightVisible = currentPage < totalPage - neighbours;
+  if (!isLeftVisible && isRightVisible) {
+    return [...getRange(1, maxAvaliblePages), '>>', lastPage];
+  }
+  if (isLeftVisible && !isRightVisible) {
+    return [firstPage, '<<', ...getRange(currentPage - neighbours, totalPage)];
+  }
+  return [
+    firstPage,
+    '<<',
+    ...getRange(currentPage - neighbours, currentPage + neighbours),
+    '>>',
+    lastPage,
+  ];
+};
+const TableContainer = ({ columns, data }) => {
   console.log('TableContainer -> data', data);
-
+  const controlledPageCount = useSelector(selectorTypos.selectTotalPages);
   const {
     getTableProps,
     getTableBodyProps,
@@ -27,27 +55,32 @@ const TableContainer = ({ columns, data, controlledPageCount }) => {
     {
       columns,
       data,
-      initialState: { pageIndex: 0 },
+      initialState: { pageIndex: 1, pageSize: 2 },
       manualPagination: true,
       pageCount: controlledPageCount,
     },
     usePagination
   );
   const dispatch = useDispatch();
-  const onChangeInSelect = (event) => {
-    const pageSizeI = Number(event.target.value);
-    // setPageSize(pageSizeI)
-    dispatch(actionsTypos.setPageSize(pageSizeI));
-  };
+  React.useEffect(() => {
+    dispatch(asyncActionsTypos.getTypos({ pageIndex, pageSize }));
+  }, [dispatch, pageIndex, pageSize]);
+  console.log('TableContainer -> pageIndex', pageIndex);
+  console.log('TableContainer -> pageCount', pageCount);
 
-  const onChangeInInput = (event) => {
-    const pageI = event.target.value ? Number(event.target.value) - 1 : 0;
-    // gotoPage(pageI)
-    dispatch(actionsTypos.setCurrentPage(pageI));
+  const handleGoToPage = (selectPage) => () => {
+    gotoPage(selectPage);
   };
+  console.log('pageOptions', pageOptions);
+
   return (
     <>
-      <Table bordered hover {...getTableProps()}>
+      <Table
+        bordered
+        hover
+        onPageChange={() => console.log('1122YAY)')}
+        {...getTableProps()}
+      >
         <thead>
           {headerGroups.map((headerGroup) => (
             <tr {...headerGroup.getHeaderGroupProps()}>
@@ -73,68 +106,64 @@ const TableContainer = ({ columns, data, controlledPageCount }) => {
           })}
         </tbody>
       </Table>
-
-      <Row style={{ maxWidth: 1000, margin: '0 auto', textAlign: 'center' }}>
-        <Col md={3}>
-          <Button
-            color="primary"
-            onClick={() => dispatch(actionsTypos.setCurrentPage(0))}
+      <nav className="d-flex">
+        <Form.Control
+          as="select"
+          value={pageSize}
+          className="w-25"
+          onChange={(e) => {
+            setPageSize(Number(e.target.value));
+          }}
+        >
+          {[1, 2, 3, 10].map((pageSizeI) => (
+            <option key={pageSizeI} value={pageSizeI}>
+              Show {pageSizeI}
+            </option>
+          ))}
+        </Form.Control>
+        <Pagination className=" ml-auto justify-content-center">
+          <Pagination.First
+            onClick={handleGoToPage(0)}
             disabled={!canPreviousPage}
-          >
-            {'<<'}
-          </Button>
-          <Button
-            color="primary"
-            onClick={previousPage}
-            disabled={!canPreviousPage}
-          >
-            {'<'}
-          </Button>
-        </Col>
-        <Col md={2} style={{ marginTop: 7 }}>
-          Page{' '}
-          <strong>
-            {pageIndex + 1} of {pageOptions.length}
-          </strong>
-        </Col>
-        <Col md={2}>
-          <Input
-            type="number"
-            min={1}
-            style={{ width: 70 }}
-            max={pageOptions.length}
-            defaultValue={pageIndex + 1}
-            onChange={onChangeInInput}
           />
-        </Col>
-        <Col md={2}>
-          <CustomInput
-            id="CustomInput"
-            type="select"
-            value={pageSize}
-            onChange={onChangeInSelect}
-          >
-            {'>'}
-            {[3, 5, 10].map((pageSizeI) => (
-              <option key={pageSizeI} value={pageSizeI}>
-                Show {pageSizeI}
-              </option>
-            ))}
-          </CustomInput>
-        </Col>
-        <Col md={3}>
-          <Button color="primary" onClick={nextPage} disabled={!canNextPage}>
-            {'>'}
-          </Button>
-          <Button
-            color="primary"
-            onClick={() => dispatch(actionsTypos.setCurrentPage(pageCount - 1))}
+          <Pagination.Prev onClick={previousPage} disabled={!canPreviousPage} />
+          {getPages(pageIndex, pageCount).map((pageI) => {
+            switch (true) {
+              case pageI === '<<':
+                return (
+                  <Pagination.Ellipsis
+                    key={pageI}
+                    onClick={handleGoToPage(pageIndex - 2)}
+                  />
+                );
+              case pageI === '>>':
+                return (
+                  <Pagination.Ellipsis
+                    key={pageI}
+                    onClick={handleGoToPage(pageIndex + 2)}
+                  />
+                );
+              default:
+                return (
+                  <Pagination.Item
+                    key={pageI}
+                    active={pageIndex === pageI - 1}
+                    onClick={handleGoToPage(pageI - 1)}
+                  >
+                    {pageI}
+                  </Pagination.Item>
+                );
+            }
+          })}
+
+          {/* <Pagination.Ellipsis /> */}
+          <Pagination.Next onClick={nextPage} disabled={!canNextPage} />
+          <Pagination.Last
+            onClick={handleGoToPage(pageCount - 1)}
             disabled={!canNextPage}
-          >
-            {'>>'}
-          </Button>
-        </Col>
-      </Row>
+          />
+        </Pagination>
+      </nav>
     </>
   );
 };
